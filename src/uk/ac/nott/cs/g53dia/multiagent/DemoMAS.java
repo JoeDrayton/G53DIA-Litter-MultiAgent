@@ -8,7 +8,8 @@ public class DemoMAS extends MAS {
     /** 
      * Number of agents in the MAS (this is just an **example**, not a requirement).
      */
-    private static int MAS_SIZE = 3;
+    private static int MAS_SIZE = 2;
+	public static TaskManager taskManager;
     public DemoMAS() {
     	this(new Random());
     }
@@ -21,10 +22,17 @@ public class DemoMAS extends MAS {
 	 *            The random number generator.
 	 */
     public DemoMAS(Random r) {
-	// Create the agents
 
+	// Create the agents
 	for (int i=0; i<MAS_SIZE; i++) {
-	    this.add(new GarryTheAgent(r, i));
+	    GarryTheAgent agent = new GarryTheAgent(r, i);
+		this.add(agent);
+		taskManager = new TaskManager(agent);
+	    agent.taskManager =  taskManager;
 	}
     }
+
+	public long getScore() {
+    	return super.getScore();
+	}
 }
