@@ -22,7 +22,7 @@ public class DemoMAS extends MAS {
 	 *            The random number generator.
 	 */
     public DemoMAS(Random r) {
-
+    	taskManager.clear();
 	// Create the agents
 	for (int i=0; i<MAS_SIZE; i++) {
 	    GarryTheAgent agent = new GarryTheAgent(r, i);
@@ -32,7 +32,5 @@ public class DemoMAS extends MAS {
 	}
     }
 
-	public long getScore() {
-    	return super.getScore();
-	}
+
 }

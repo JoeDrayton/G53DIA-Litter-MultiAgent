@@ -12,14 +12,14 @@ public class TaskManager {
     public ArrayList<AreaScan> regions = new ArrayList<>();
     public ArrayList<Task> wasteBlackList = new ArrayList<>();
     public ArrayList<Task> recyclingBlacklist = new ArrayList<>();
+    public ArrayList<Task> wasteList = new ArrayList<>();
+    public ArrayList<Task> recyclinglist = new ArrayList<>();
     public ArrayList<ArrayList<Task>> taskQueue = new ArrayList<>();
     private final String WASTETASK = "class uk.ac.nott.cs.g53dia.multilibrary.WasteTask";
     private final String RECYCLINGTASK = "class uk.ac.nott.cs.g53dia.multilibrary.RecyclingTask";
-
     public static ArrayList<GarryTheAgent> agents = new ArrayList<>();
-    public TaskManager(){
+    public Helper helper = new Helper();
 
-    }
     public TaskManager(GarryTheAgent agent){
         agents.add(agent);
     }
@@ -27,11 +27,17 @@ public class TaskManager {
     public static void clear(){
         agents.clear();
     }
-    public void activateRegion(AreaScan region){
-        //regions.remove(region);
-    }
-    public void deactivateRegion(AreaScan region){
-        //regions.add(region);
+
+    public void buildTaskList(Cell[][] view){
+        for(AreaScan r : regions){
+            r.scanCells(view);
+            for(Task waste : r.wasteTasks) {
+                wasteList.add(waste);
+            }
+            for(Task recycling : r.wasteTasks) {
+                wasteList.add(recycling);
+            }
+        }
     }
 
     public void blacklistTask(Task task){
@@ -68,7 +74,11 @@ public class TaskManager {
                 for(Task t : taskList){
                     currentScore += t.getRemaining();
                 }
-                currentScore = currentScore / taskList.get(0).getPosition().distanceTo(agent.getPosition());
+                int distance = taskList.get(0).getPosition().distanceTo(agent.getPosition());
+                if (distance == 0) {
+                    distance = 1;
+                }
+                currentScore = currentScore / distance;
                 if(currentScore > bestScore){
                     bestScore = currentScore;
                     bestList = taskList;
@@ -80,12 +90,92 @@ public class TaskManager {
         return new ArrayList<>();
     }
 
+    public float taskScore(ArrayList<Task> list, GarryTheAgent agent){
+        float score = 0;
+        int distance = 0;
+        for (Task t : list) {
+            score += t.getRemaining();
+        }
+        distance = list.get(0).getPosition().distanceTo(agent.getPosition());
+        if (distance == 0) {
+            distance = 1;
+        }
+        return score / distance;
+    }
+
+    public ArrayList<Task> upgradeTask(GarryTheAgent agent) {
+        if (!taskQueue.isEmpty() && !agent.forageList.isEmpty()) {
+                float currentTaskScore = taskScore(agent.forageList, agent);
+                ArrayList<Task> bestList = new ArrayList<>();
+                float bestScore = 0;
+                float currentScore;
+                for (ArrayList<Task> taskList : taskQueue) {
+                    currentScore = taskScore(taskList, agent);
+                    if (currentScore > bestScore) {
+                        bestScore = currentScore;
+                        bestList = taskList;
+                    }
+                }
+
+                if (currentTaskScore < bestScore) {
+                    taskQueue.add(agent.forageList);
+                    removeTaskFromPool(bestList);
+                    return bestList;
+                }
+        }
+            return agent.forageList;
+    }
+
+    public ArrayList<Task> upgradeRecyclingTask(GarryTheAgent agent){
+        return getSpecificTasks(agent, RECYCLINGTASK);
+    }
+
+    public ArrayList<Task> upgradeWasteTask(GarryTheAgent agent){
+        return getSpecificTasks(agent, WASTETASK);
+    }
+
+    private ArrayList<Task> getSpecificTasks(GarryTheAgent agent, String task) {
+        if(!taskQueue.isEmpty() && !agent.forageList.isEmpty()){
+            float currentTaskScore = taskScore(agent.forageList, agent);
+            ArrayList<Task> bestList = new ArrayList<>();
+            float bestScore = 0;
+            float currentScore;
+            for (ArrayList<Task> taskList : taskQueue) {
+                int remaining = 0;
+                for(Task t : taskList){
+                    remaining += t.getRemaining();
+                }
+                currentScore = taskScore(taskList, agent);
+                if (currentScore > bestScore && taskList.get(0).getClass().toString().equals(task)) {
+                    if(task.equals(WASTETASK)){
+                        if(agent.getWasteLevel() + remaining < GarryTheAgent.MAX_LITTER){
+                            bestScore = currentScore;
+                            bestList = taskList;
+                        }
+                    } else if(task.equals(RECYCLINGTASK)){
+                        if(agent.getRecyclingLevel() + remaining < GarryTheAgent.MAX_LITTER){
+                            bestScore = currentScore;
+                            bestList = taskList;
+                        }
+                    }
+                }
+            }
+
+            if (currentTaskScore < bestScore) {
+                taskQueue.add(agent.forageList);
+                removeTaskFromPool(bestList);
+                return bestList;
+            }
+        }
+        return agent.forageList;
+    }
+
+
     /**
      * buildForageList determines all viable tasks for the agent to complete en route to the relevant station
-     * @param closestStation location of the closest relevant station
      * @param list list of potential tasks to iterate over
      */
-    public void buildForageList(Task initialTask, Point closestStation, ArrayList<Task> list) {
+    public void buildForageList(Task initialTask, ArrayList<Task> list) {
         for(GarryTheAgent a : agents){
             a.evaluateRegion(a.view);
         }
@@ -97,10 +187,8 @@ public class TaskManager {
             // If the new task is close enough to the current task and won't overfill the capacity
             int distance = initialTask.getPosition().distanceTo(newTask.getPosition());
             if (distance < 10 && potentialCapacity + newTask.getRemaining() < GarryTheAgent.MAX_LITTER) {
-                int oldDist = initialTask.getPosition().distanceTo(closestStation);
-                int newDist = newTask.getPosition().distanceTo(closestStation);
                 // If the distance from the current task to the station is similar to the new task
-                if (abs(oldDist - newDist) < 5 && !isTaskOnBlackList(newTask)) {
+                if (!isTaskOnBlackList(newTask)) {
                     // Add it to the list and set current task to the new task
                     potentialCapacity += initialTask.getRemaining();
                     forageList.add(newTask);
@@ -130,78 +218,16 @@ public class TaskManager {
         // While nodes are left to sort
         while (!unConstructedPath.isEmpty()) {
             // Take the closest node from the list
-            Task evaluation = (Task) closestTaskFromPoint(unConstructedPath, initialTask.getPosition());
+            Task evaluation = (Task) helper.closestTaskFromPoint(unConstructedPath, initialTask.getPosition());
             unConstructedPath.remove(evaluation);
             original.remove(evaluation);
             constructedPath.add(evaluation);
-            closestTaskFromTask(original, evaluation, unConstructedPath);
+            helper.closestTaskFromTask(original, evaluation, unConstructedPath);
         }
         return constructedPath;
     }
 
-    public void closestTaskFromTask(ArrayList<Task> taskList, Task evalationTask, ArrayList<Task> unConstructedPath) {
-        int distance, closestDistance;
-        // Init closestDistance to 1000 so it will always set the first element
-        closestDistance = 1000;
-        Task closestTask = null;
 
-        // Iterating over the task list
-        for (Task t : taskList) {
-            distance = t.getPosition().distanceTo(evalationTask.getPosition());
-            // If new task is closer, set it to closest task
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestTask = t;
-            }
-        }
-
-        if (closestTask != null) {
-            unConstructedPath.add(closestTask);
-        }
-    }
-
-    public Task closestTaskFromPoint(ArrayList<?> list, Point startPosition) {
-        int distance, closestDistance;
-        // Same as closestTask, just initialisation
-        closestDistance = 1000;
-        Task closestPoint = null;
-        for (Object element : list) {
-            // cast element to Cell variable
-            Task point = (Task) element;
-            distance = point.getPosition().distanceTo(startPosition);
-            // if new element is closer, set it to closestPoint
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestPoint = point;
-            }
-        }
-        return closestPoint;
-    }
-
-    /**
-     * Very similar to closestTask, closestPoint takes an abstract ArrayList, converts it to
-     * a Cell and works out which in the list is closest to the agent
-     *
-     * @param list generalised ArrayList
-     * @return returns the closest element in the list
-     */
-    public Cell closestPointFromPoint(ArrayList<?> list, Point startPosition) {
-        int distance, closestDistance;
-        // Same as closestTask, just initialisation
-        closestDistance = 1000;
-        Cell closestPoint = null;
-        for (Object element : list) {
-            // cast element to Cell variable
-            Cell point = (Cell) element;
-            distance = point.getPoint().distanceTo(startPosition);
-            // if new element is closer, set it to closestPoint
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestPoint = point;
-            }
-        }
-        return closestPoint;
-    }
 
     public void constructTaskList() {
         for (GarryTheAgent agent : agents) {
@@ -209,15 +235,23 @@ public class TaskManager {
             if (agent.currentRegion != null && !agent.currentRegion.wasteTasks.isEmpty()) {
                 Task regionsBestWaste = superiorTask(agent, agent.currentRegion.wasteTasks);
                 if (!isTaskOnBlackList(regionsBestWaste)) {
-                    closestStation = closestPointFromPoint(agent.currentRegion.wasteStations, regionsBestWaste.getPosition()).getPoint();
-                    buildForageList(regionsBestWaste, closestStation, agent.currentRegion.wasteTasks);
+                    try {
+                        closestStation = helper.closestPointFromPoint(agent.currentRegion.wasteStations, regionsBestWaste.getPosition()).getPoint();
+                    } catch (NullPointerException e) {
+                        closestStation = helper.closestPointOfAll(agent.currentRegion.wasteStations, regions, regionsBestWaste.getPosition());
+                    }
+                    buildForageList(regionsBestWaste, agent.currentRegion.wasteTasks);
                 }
             }
             if (agent.currentRegion != null && !agent.currentRegion.recyclingTasks.isEmpty()) {
                 Task regionsBestRecycling = superiorTask(agent, agent.currentRegion.recyclingTasks);
                 if (!isTaskOnBlackList(regionsBestRecycling)) {
-                    closestStation = closestPointFromPoint(agent.currentRegion.recyclingStations, regionsBestRecycling.getPosition()).getPoint();
-                    buildForageList(regionsBestRecycling, closestStation, agent.currentRegion.recyclingTasks);
+                    try {
+                        closestStation = helper.closestPointFromPoint(agent.currentRegion.recyclingStations, regionsBestRecycling.getPosition()).getPoint();
+                    } catch (NullPointerException e) {
+                        closestStation = helper.closestPointOfAll(agent.currentRegion.recyclingStations, regions, regionsBestRecycling.getPosition());
+                    }
+                    buildForageList(regionsBestRecycling, agent.currentRegion.recyclingTasks);
                 }
             }
         }
@@ -259,29 +293,6 @@ public class TaskManager {
         return bestTask;
     }
 
-    /**
-     * Superior task uses evaluateTask to determine the best recycling task and waste task, then it compares the two
-     * returning the best task of all for the agent to persue
-     * @return returns the best task for the agent to persue
-     */
-    /*
-    public Task superiorTask(GarryTheAgent agent) {
-
-        // Initialise currentBest much like in evaluateTask
-        Task currentBest = agent.currentTask;
-        if (!agent.currentRegion.recyclingTasks.isEmpty()) {
-            // Finds the best recycling task
-            currentBest = evaluateTask(agent, agent.currentRegion.recyclingTasks, currentBest);
-        }
-        // Finds the best task of all using currentBest as the best recycling task
-        if (!agent.currentRegion.wasteTasks.isEmpty()) {
-            currentBest = evaluateTask(agent, agent.currentRegion.wasteTasks, currentBest);
-        }
-        return currentBest;
-    }
-
-
-     */
     public void verifyTask(GarryTheAgent currentAgent){
         for(GarryTheAgent a : agents){
             if(!currentAgent.equals(a) && a.currentTask!= null){
