@@ -1,19 +1,14 @@
 package uk.ac.nott.cs.g53dia.multiagent;
-
-import uk.ac.nott.cs.g53dia.multilibrary.Cell;
-import uk.ac.nott.cs.g53dia.multilibrary.Point;
 import uk.ac.nott.cs.g53dia.multilibrary.Task;
 
 import java.util.ArrayList;
-
-import static java.lang.Math.abs;
+import java.util.Collections;
+import java.util.Comparator;
 
 public class TaskManager {
     public ArrayList<AreaScan> regions = new ArrayList<>();
     public ArrayList<Task> wasteBlackList = new ArrayList<>();
     public ArrayList<Task> recyclingBlacklist = new ArrayList<>();
-    public ArrayList<Task> wasteList = new ArrayList<>();
-    public ArrayList<Task> recyclinglist = new ArrayList<>();
     public ArrayList<ArrayList<Task>> taskQueue = new ArrayList<>();
     private final String WASTETASK = "class uk.ac.nott.cs.g53dia.multilibrary.WasteTask";
     private final String RECYCLINGTASK = "class uk.ac.nott.cs.g53dia.multilibrary.RecyclingTask";
@@ -28,17 +23,6 @@ public class TaskManager {
         agents.clear();
     }
 
-    public void buildTaskList(Cell[][] view){
-        for(AreaScan r : regions){
-            r.scanCells(view);
-            for(Task waste : r.wasteTasks) {
-                wasteList.add(waste);
-            }
-            for(Task recycling : r.wasteTasks) {
-                wasteList.add(recycling);
-            }
-        }
-    }
 
     public void blacklistTask(Task task){
         if (task.getClass().toString().equals(WASTETASK)) {
@@ -227,35 +211,43 @@ public class TaskManager {
         return constructedPath;
     }
 
-
-
     public void constructTaskList() {
         for (GarryTheAgent agent : agents) {
-            Point closestStation;
             if (agent.currentRegion != null && !agent.currentRegion.wasteTasks.isEmpty()) {
                 Task regionsBestWaste = superiorTask(agent, agent.currentRegion.wasteTasks);
                 if (!isTaskOnBlackList(regionsBestWaste)) {
-                    try {
-                        closestStation = helper.closestPointFromPoint(agent.currentRegion.wasteStations, regionsBestWaste.getPosition()).getPoint();
-                    } catch (NullPointerException e) {
-                        closestStation = helper.closestPointOfAll(agent.currentRegion.wasteStations, regions, regionsBestWaste.getPosition());
-                    }
+                    Collections.sort(agent.currentRegion.wasteTasks, Comparator.comparingInt(Task::getRemaining).reversed());
                     buildForageList(regionsBestWaste, agent.currentRegion.wasteTasks);
                 }
             }
             if (agent.currentRegion != null && !agent.currentRegion.recyclingTasks.isEmpty()) {
                 Task regionsBestRecycling = superiorTask(agent, agent.currentRegion.recyclingTasks);
                 if (!isTaskOnBlackList(regionsBestRecycling)) {
-                    try {
-                        closestStation = helper.closestPointFromPoint(agent.currentRegion.recyclingStations, regionsBestRecycling.getPosition()).getPoint();
-                    } catch (NullPointerException e) {
-                        closestStation = helper.closestPointOfAll(agent.currentRegion.recyclingStations, regions, regionsBestRecycling.getPosition());
-                    }
+                    Collections.sort(agent.currentRegion.recyclingTasks, Comparator.comparingInt(Task::getRemaining).reversed());
                     buildForageList(regionsBestRecycling, agent.currentRegion.recyclingTasks);
                 }
             }
         }
     }
+
+    /*
+            for (GarryTheAgent agent : agents) {
+            if (agent.currentRegion != null && !agent.currentRegion.wasteTasks.isEmpty()) {
+                Task regionsBestWaste = superiorTask(agent, agent.currentRegion.wasteTasks);
+                if (!isTaskOnBlackList(regionsBestWaste)) {
+                    Collections.sort(agent.currentRegion.wasteTasks, Comparator.comparingInt(Task::getRemaining).reversed());
+                    buildForageList(regionsBestWaste, agent.currentRegion.wasteTasks);
+                }
+            }
+            if (agent.currentRegion != null && !agent.currentRegion.recyclingTasks.isEmpty()) {
+                Task regionsBestRecycling = superiorTask(agent, agent.currentRegion.recyclingTasks);
+                if (!isTaskOnBlackList(regionsBestRecycling)) {
+                    Collections.sort(agent.currentRegion.recyclingTasks, Comparator.comparingInt(Task::getRemaining).reversed());
+                    buildForageList(regionsBestRecycling, agent.currentRegion.recyclingTasks);
+                }
+            }
+        }
+     */
 
     /**
      * Crucial function for the agent to perform optimally. Finds the best task of a specific type.
@@ -291,46 +283,5 @@ public class TaskManager {
             }
         }
         return bestTask;
-    }
-
-    public void verifyTask(GarryTheAgent currentAgent){
-        for(GarryTheAgent a : agents){
-            if(!currentAgent.equals(a) && a.currentTask!= null){
-                if(currentAgent.currentTask.equals(a.currentTask)){
-                    resolveConflict(currentAgent, a);
-                }
-            }
-        }
-    }
-
-    public void resolveConflict(GarryTheAgent agent1, GarryTheAgent agent2){
-        int agent1Distance = agent1.getPosition().distanceTo(agent1.currentTask.getPosition());
-        int agent2Distance = agent2.getPosition().distanceTo(agent2.currentTask.getPosition());
-        if(agent1Distance < agent2Distance){
-            // Code to fix task bullshit
-            agent2.currentTask = findNewTask(agent2);
-        } else {
-            // Code to fix task bullshit
-            agent1.currentTask = findNewTask(agent2);
-        }
-    }
-
-    public Task findNewTask(GarryTheAgent agent){
-        ArrayList<Task> taskList;
-        Task newTask = null;
-        if(agent.currentTask.getClass().toString().equals(WASTETASK)){
-            taskList = agent.currentRegion.wasteTasks;
-            if(taskList.size()!=0) {
-                taskList.remove(agent.currentTask);
-                newTask = superiorTask(agent, taskList);
-            }
-        } else if(agent.currentTask.getClass().toString().equals(RECYCLINGTASK)){
-            taskList = agent.currentRegion.recyclingTasks;
-            if(taskList.size()!=0) {
-                taskList.remove(agent.currentTask);
-                newTask = superiorTask(agent, taskList);
-            }
-        }
-        return newTask;
     }
 }
