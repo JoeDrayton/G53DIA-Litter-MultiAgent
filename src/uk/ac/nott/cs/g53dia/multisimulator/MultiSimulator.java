@@ -39,7 +39,7 @@ public class MultiSimulator {
 
 	public static void main(String[] args) {
 		// Note: to obtain reproducible behaviour, you can set the Random seed
-		Random r = new Random();
+		Random r = new Random(0);
 		// Create an environment
 		Environment env = new Environment(LitterAgent.MAX_CHARGE/2, r);
 		// Create a MAS

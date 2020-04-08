@@ -50,6 +50,7 @@ public class GarryTheAgent extends LitterAgent {
     public Helper helper = new Helper();
 
     public ArrayList<Task> forageList = new ArrayList<>();
+    public int forageReference;
     // AgentState variables for control of state in SeekAndAct
     protected AgentState agentState;
     private AgentState previousState;
@@ -172,7 +173,7 @@ public class GarryTheAgent extends LitterAgent {
     public Action senseAndAct(Cell[][] view, long timestep) {
         this.view = view;
         //System.out.println(timestep);
-        if(timestep == 800) {
+        if(timestep == 1000) {
             //System.out.println(timestep);
         }
         // If statements for charge control, always goes to the closest charger and aims to minimise distance travelled
@@ -200,11 +201,7 @@ public class GarryTheAgent extends LitterAgent {
                 this.originalPoint = getPosition();
                 this.explorationLocation = this.originalPoint;
                 // Attempt to find task
-                if (currentRegion.wasteTasks.isEmpty()) {
-                    if (currentRegion.recyclingTasks.isEmpty()) {
-                        agentState = AgentState.EXPLORING;
-                    }
-                }
+                agentState = AgentState.EXPLORING;
 
             case EXPLORING:
                 taskManager.constructTaskList();
@@ -272,6 +269,7 @@ public class GarryTheAgent extends LitterAgent {
                 } else {
                     forageList = taskManager.upgradeTask(this);
                 }
+
                 if(!forageList.isEmpty()) {
                     this.currentTask = forageList.get(0);
                 }
@@ -279,31 +277,24 @@ public class GarryTheAgent extends LitterAgent {
                     // If it is a waste task and forage list is not empty
                     if (!forageList.isEmpty()) {
                         // Pop off a task from the list and execute it
-                        Task forageTask = forageList.get(0);
-                        if (getCurrentCell(view) instanceof WasteBin && getPosition().equals(forageTask.getPosition())) {
+                        this.currentTask = forageList.get(0);
+                        if (getCurrentCell(view) instanceof WasteBin && getPosition().equals(this.currentTask.getPosition())) {
                             // Deal with forage task also
                             forageList.remove(0);
-                            currentRegion.wasteTasks.remove(forageTask);
                             agentState = AgentState.FORAGELITTERBINS;
-                            return new LoadAction(forageTask);
+                            currentRegion.wasteTasks.remove(this.currentTask);
+                            return new LoadAction(this.currentTask);
                         } else {
                             agentState = AgentState.FORAGELITTERBINS;
-                            if (!getPosition().equals(forageTask.getPosition())) {
-                                if (!getPosition().equals(forageTask.getPosition())) {
-                                    return new MoveTowardsAction(forageTask.getPosition());
+                            if (!getPosition().equals(this.currentTask.getPosition())) {
+                                if (!getPosition().equals(this.currentTask.getPosition())) {
+                                    return new MoveTowardsAction(this.currentTask.getPosition());
                                 }
                             }
                         }
-                /*    } else if(getWasteLevel() > MAX_LITTER/2) {
-                        forageList = taskManager.upgradeWasteTask(this);
-                        if(!forageList.isEmpty()){
-                            this.currentTask = forageList.get(0);
-                            return new MoveTowardsAction(this.currentTask.getPosition());
-                        }
-
-                 */
                     } else {
                         // When done dispose litter
+                        taskManager.deactivateList(forageReference);
                         agentState = AgentState.LITTERDISPOSAL;
                         return new MoveTowardsAction(helper.closestPointOfAll(currentRegion.wasteStations, taskManager.regions, getPosition()));
                     }
@@ -311,29 +302,22 @@ public class GarryTheAgent extends LitterAgent {
                     // If it is a recycling task and forage list is not empty
                     if (!forageList.isEmpty()) {
                         // Pop off a task from the list and execute it
-                        Task forageTask = forageList.get(0);
-                        if (getCurrentCell(view) instanceof RecyclingBin && getPosition().equals(forageTask.getPosition())) {
+                        this.currentTask = forageList.get(0);
+                        if (getCurrentCell(view) instanceof RecyclingBin && getPosition().equals(this.currentTask.getPosition())) {
                             // Deal with forage task also
                             forageList.remove(0);
-                            currentRegion.recyclingTasks.remove(forageTask);
+                            currentRegion.recyclingTasks.remove(this.currentTask);
                             agentState = AgentState.FORAGELITTERBINS;
-                            return new LoadAction(forageTask);
+                            return new LoadAction(this.currentTask);
                         } else {
                             agentState = AgentState.FORAGELITTERBINS;
-                            if (!getPosition().equals(forageTask.getPosition())) {
-                                return new MoveTowardsAction(forageTask.getPosition());
+                            if (!getPosition().equals(this.currentTask.getPosition())) {
+                                return new MoveTowardsAction(this.currentTask.getPosition());
                             }
                         }
-                /*    } else if(getRecyclingLevel() > MAX_LITTER/2) {
-                        forageList = taskManager.upgradeRecyclingTask(this);
-                        if(!forageList.isEmpty()){
-                            this.currentTask = forageList.get(0);
-                            return new MoveTowardsAction(this.currentTask.getPosition());
-                        }
-
-                 */
                     } else {
                         // When done dispose litter
+                        taskManager.deactivateList(forageReference);
                         agentState = AgentState.LITTERDISPOSAL;
                         return new MoveTowardsAction(helper.closestPointOfAll(currentRegion.recyclingStations, taskManager.regions, getPosition()));
                     }
