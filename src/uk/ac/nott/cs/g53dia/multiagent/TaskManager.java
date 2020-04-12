@@ -1,33 +1,34 @@
 package uk.ac.nott.cs.g53dia.multiagent;
-import uk.ac.nott.cs.g53dia.multilibrary.Task;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
+import javafx.util.Pair;
+import uk.ac.nott.cs.g53dia.multilibrary.*;
+
+import java.util.*;
 
 public class TaskManager {
     public ArrayList<AreaScan> regions = new ArrayList<>();
     public ArrayList<Task> wasteWorkingList = new ArrayList<>();
     public ArrayList<Task> recyclingWorkingList = new ArrayList<>();
-    public ArrayList<ArrayList<Task>> taskQueue = new ArrayList<>();
-    public HashMap<Integer, ArrayList<Task>> activeList = new HashMap<>();
+    public ArrayList<TaskList> wasteQueue = new ArrayList<>();
+    public ArrayList<TaskList> recyclingQueue = new ArrayList<>();
+    public ArrayList<RecyclingStation> recyclingStations = new ArrayList<>();
+    public ArrayList<WasteStation> wasteStations = new ArrayList<>();
+    public HashMap<Integer, TaskList> activeList = new HashMap<>();
     private final String WASTETASK = "class uk.ac.nott.cs.g53dia.multilibrary.WasteTask";
     private final String RECYCLINGTASK = "class uk.ac.nott.cs.g53dia.multilibrary.RecyclingTask";
     public static ArrayList<GarryTheAgent> agents = new ArrayList<>();
     public Helper helper = new Helper();
     public int activeListIndex = -1;
 
-    public TaskManager(GarryTheAgent agent){
+    public TaskManager(GarryTheAgent agent) {
         agents.add(agent);
     }
 
-    public static void clear(){
+    public static void clear() {
         agents.clear();
     }
 
-
-    public void addTaskToWorkingList(Task task){
+    public void addTaskToWorkingList(Task task) {
         if (task.getClass().toString().equals(WASTETASK)) {
             wasteWorkingList.add(task);
         } else if (task.getClass().toString().equals(RECYCLINGTASK)) {
@@ -35,22 +36,23 @@ public class TaskManager {
         }
     }
 
-    public boolean isTaskOnWorkingList(Task task){
+    public boolean isTaskOnWorkingList(Task task) {
         if (task.getClass().toString().equals(WASTETASK)) {
-            if(wasteWorkingList.contains(task)){
+            if (wasteWorkingList.contains(task)) {
                 return true;
             }
         } else if (task.getClass().toString().equals(RECYCLINGTASK)) {
-            if(recyclingWorkingList.contains(task)){
+            if (recyclingWorkingList.contains(task)) {
                 return true;
             }
         }
         return false;
     }
 
-    public int activateList(ArrayList<Task> list){
-        if(!activeList.containsValue(list)) {
-            taskQueue.remove(list);
+    public int activateList(TaskList list) {
+        if (!activeList.containsValue(list)) {
+            wasteQueue.remove(list);
+            recyclingQueue.remove(list);
             activeListIndex++;
             activeList.put(activeListIndex, list);
             return activeListIndex;
@@ -63,32 +65,47 @@ public class TaskManager {
         activeList.remove(index);
     }
 
-    public ArrayList<Task> requestTask(GarryTheAgent agent){
-        if(!taskQueue.isEmpty()){
-            ArrayList<Task> bestList = new ArrayList<>();
+    public TaskList requestTask(GarryTheAgent agent) {
+        ArrayList<TaskList> combinedPool = new ArrayList<>();
+        combinedPool.addAll(wasteQueue);
+        combinedPool.addAll(recyclingQueue);
+        return requestTaskFromQueue(combinedPool, agent);
+    }
+
+    public TaskList requestTaskFromQueue(ArrayList<TaskList> taskQueue, GarryTheAgent agent) {
+        if (!taskQueue.isEmpty()) {
+            TaskList bestList = new TaskList();
             float bestScore = 0;
             float currentScore = 0;
-            for(ArrayList<Task> taskList : taskQueue){
-                    for (Task t : taskList) {
-                        currentScore += t.getRemaining();
-                    }
-                    int distance = taskList.get(0).getPosition().distanceTo(agent.getPosition());
-                    if (distance == 0) {
-                        distance = 1;
-                    }
-                    currentScore = currentScore / distance;
-                    if (currentScore > bestScore) {
-                        bestScore = currentScore;
-                        bestList = taskList;
-                    }
+            for (TaskList taskList : taskQueue) {
+                for (Task t : taskList) {
+                    currentScore += t.getRemaining();
+                }
+                int distance = taskList.get(0).getPosition().distanceTo(agent.getPosition());
+                if (distance == 0) {
+                    distance = 1;
+                }
+                currentScore = currentScore / distance;
+                if (currentScore > bestScore) {
+                    bestScore = currentScore;
+                    bestList = taskList;
+                }
             }
             agent.forageReference = activateList(bestList);
             return bestList;
         }
-        return new ArrayList<>();
+        return new TaskList();
     }
 
-    public float taskScore(ArrayList<Task> list, GarryTheAgent agent){
+    public float queueScore(ArrayList<TaskList> taskQueue, GarryTheAgent agent) {
+        float totalScore = 0;
+        for (TaskList taskList : taskQueue) {
+            totalScore += taskListScore(taskList, agent);
+        }
+        return totalScore;
+    }
+
+    public float taskListScore(TaskList list, GarryTheAgent agent) {
         float score = 0;
         int distance;
         for (Task t : list) {
@@ -98,54 +115,93 @@ public class TaskManager {
         if (distance == 0) {
             distance = 1;
         }
-        return score / distance;
+        return score / (distance);
     }
 
-    public ArrayList<Task> upgradeTask(GarryTheAgent agent) {
-        if (!taskQueue.isEmpty() && !agent.forageList.isEmpty()) {
-                float currentTaskScore = taskScore(agent.forageList, agent);
-                ArrayList<Task> bestList = new ArrayList<>();
-                float bestScore = 0;
-                float currentScore;
-                for (ArrayList<Task> taskList : taskQueue) {
-                        currentScore = taskScore(taskList, agent);
-                        if (currentScore > bestScore) {
-                            bestScore = currentScore;
-                            bestList = taskList;
-                        }
-                }
-
-                if (currentTaskScore < bestScore) {
-                    taskQueue.add(agent.forageList);
-                    deactivateList(agent.forageReference);
-                    agent.forageReference = activateList(bestList);
-                    return bestList;
-                }
+    public void verifyProximity(GarryTheAgent currentAgent) {
+        ArrayList<GarryTheAgent> closeAgents = new ArrayList<>();
+        closeAgents.add(currentAgent);
+        for (GarryTheAgent agent : agents) {
+            if (currentAgent.getPosition().distanceTo(agent.getPosition()) < 25 && !currentAgent.equals(agent)) {
+                closeAgents.add(agent);
+            }
         }
-            return agent.forageList;
+        if (closeAgents.size() > 1) {
+            int recycling = 0;
+            int waste = 0;
+            for (GarryTheAgent agent : closeAgents) {
+                switch (agent.agentSpecialisation) {
+                    case RECYCLING:
+                        recycling++;
+                        break;
+                    case WASTE:
+                        waste++;
+                        break;
+                }
+            }
+            if (waste < recycling) {
+                currentAgent.agentSpecialisation = AgentSpecialisation.WASTE;
+            } else if (recycling < waste) {
+                currentAgent.agentSpecialisation = AgentSpecialisation.RECYCLING;
+            } else {
+                currentAgent.agentSpecialisation = AgentSpecialisation.HYBRID;
+            }
+        } else {
+            currentAgent.agentSpecialisation = AgentSpecialisation.HYBRID;
+        }
     }
 
-    public ArrayList<Task> upgradeRecyclingTask(GarryTheAgent agent){
-        return getSpecificTasks(agent, RECYCLINGTASK);
+    public TaskList upgradeTask(GarryTheAgent agent) {
+        ArrayList<TaskList> combinedPool = new ArrayList<>();
+        combinedPool.addAll(wasteQueue);
+        combinedPool.addAll(recyclingQueue);
+        return upgradeTaskFromQueue(combinedPool, agent);
     }
 
-    public ArrayList<Task> upgradeWasteTask(GarryTheAgent agent){
-        return getSpecificTasks(agent, WASTETASK);
-    }
-
-    private ArrayList<Task> getSpecificTasks(GarryTheAgent agent, String task) {
-        if(!taskQueue.isEmpty() && !agent.forageList.isEmpty()){
-            float currentTaskScore = taskScore(agent.forageList, agent);
-            ArrayList<Task> bestList = new ArrayList<>();
+    public TaskList upgradeTaskFromQueue(ArrayList<TaskList> taskQueue, GarryTheAgent agent) {
+        if (!taskQueue.isEmpty() && !agent.forageList.isEmpty()) {
+            float currentTaskScore = taskListScore(agent.forageList, agent);
+            TaskList bestList = new TaskList();
             float bestScore = 0;
             float currentScore;
-            for (ArrayList<Task> taskList : taskQueue) {
-                if(!activeList.containsValue(taskList)) {
+            for (TaskList taskList : taskQueue) {
+                currentScore = taskListScore(taskList, agent);
+                if (bestScore < currentScore) {
+                    bestScore = currentScore;
+                    bestList = taskList;
+                }
+            }
+            if (currentTaskScore < bestScore) {
+                taskQueue.add(agent.forageList);
+                deactivateList(agent.forageReference);
+                agent.forageReference = activateList(bestList);
+                return bestList;
+            }
+        }
+        return agent.forageList;
+    }
+
+    public TaskList upgradeRecyclingTask(GarryTheAgent agent) {
+        return getSpecificTasks(recyclingQueue, agent, RECYCLINGTASK);
+    }
+
+    public TaskList upgradeWasteTask(GarryTheAgent agent) {
+        return getSpecificTasks(wasteQueue, agent, WASTETASK);
+    }
+
+    private TaskList getSpecificTasks(ArrayList<TaskList> taskQueue, GarryTheAgent agent, String task) {
+        if (!taskQueue.isEmpty() && !agent.forageList.isEmpty()) {
+            float currentTaskScore = taskListScore(agent.forageList, agent);
+            TaskList bestList = new TaskList();
+            float bestScore = 0;
+            float currentScore;
+            for (TaskList taskList : taskQueue) {
+                if (!activeList.containsValue(taskList)) {
                     int remaining = 0;
                     for (Task t : taskList) {
                         remaining += t.getRemaining();
                     }
-                    currentScore = taskScore(taskList, agent);
+                    currentScore = taskListScore(taskList, agent);
                     if (currentScore > bestScore && taskList.get(0).getClass().toString().equals(task)) {
                         if (task.equals(WASTETASK)) {
                             if (agent.getWasteLevel() + remaining < GarryTheAgent.MAX_LITTER) {
@@ -172,17 +228,55 @@ public class TaskManager {
         return agent.forageList;
     }
 
+    public Point majorityStation(HashMap<Point, Integer> stations){
+        Point majorityStation = null;
+        int maxStationCount = 0;
+        for(Point station : stations.keySet()){
+            int currentStationCount = stations.get(station);
+            if(maxStationCount < currentStationCount){
+                majorityStation = station;
+                maxStationCount = currentStationCount;
+            }
+        }
+        return majorityStation;
+    }
+
+    public Point selectStation(TaskList taskList){
+        HashMap<Point, Integer> stations = new HashMap<>();
+        for(Task t : taskList){
+            if(t.getClass().toString().equals(WASTETASK)){
+                Point wasteStation = helper.closestPointFromPoint(wasteStations, t.getPosition()).getPoint();
+                if(stations.containsKey(wasteStation)){
+                    int current = stations.get(wasteStation) + 1;
+                    stations.replace(wasteStation, current);
+                } else {
+                    stations.put(wasteStation, 1);
+                }
+            } else if(t.getClass().toString().equals(RECYCLINGTASK)){
+                Point recyclingStation = helper.closestPointFromPoint(recyclingStations, t.getPosition()).getPoint();
+                if(stations.containsKey(recyclingStation)){
+                    int current = stations.get(recyclingStation) + 1;
+                    stations.replace(recyclingStation, current);
+                } else {
+                    stations.put(recyclingStation, 1);
+                }
+            }
+        }
+        return majorityStation(stations);
+    }
+
     /**
      * buildForageList determines all viable tasks for the agent to complete en route to the relevant station
+     *
      * @param list list of potential tasks to iterate over
      */
-    public void buildForageList(ArrayList<Task> list) {
-        while(!list.isEmpty()) {
+    public void buildForageList(ArrayList<TaskList> taskQueue, ArrayList<Task> list) {
+        while (!list.isEmpty()) {
             int potentialCapacity = 0;
-            ArrayList<Task> forageList = new ArrayList<>();
+            TaskList forageList = new TaskList();
             Task initialTask = list.get(0);
             list.remove(initialTask);
-            if(!initialTask.isComplete()) {
+            if (!initialTask.isComplete()) {
                 forageList.add(initialTask);
                 potentialCapacity = initialTask.getRemaining();
             }
@@ -203,44 +297,86 @@ public class TaskManager {
             }
             // If the list is not empty then use findPath
             if (!forageList.isEmpty()) {
-                forageList = findPath(forageList, initialTask);
-                if(!activeList.containsValue(forageList)) {
+                forageList.listStation = selectStation(forageList);
+                forageList = forageList.findPath();
+                if(forageList.compareTaskList(activeList) == -1){
                     taskQueue.add(forageList);
+                } else {
+                    forageList = forageList.removeClashes(activeList);
+                    if(!forageList.isEmpty()){
+                        taskQueue.add(forageList);
+                    }
                 }
             }
         }
     }
 
-
-    /**
-     * findPath quite simply finds a low cost path between the tasks supplies
-     * @param original original list of tasks passed by buildForageList
-     * @return returns a sorted list
-     */
-    public ArrayList<Task> findPath(ArrayList<Task> original, Task initialTask) {
-        // Initialisations
-        ArrayList<Task> constructedPath = new ArrayList<>();
-        ArrayList<Task> unConstructedPath = new ArrayList<>();
-        unConstructedPath.add(original.get(0));
-        // While nodes are left to sort
-        while (!unConstructedPath.isEmpty()) {
-            // Take the closest node from the list
-            Task evaluation = (Task) helper.closestTaskFromPoint(unConstructedPath, initialTask.getPosition());
-            unConstructedPath.remove(evaluation);
-            original.remove(evaluation);
-            constructedPath.add(evaluation);
-            helper.closestTaskFromTask(original, evaluation, unConstructedPath);
-        }
-        return constructedPath;
-    }
-
-    public void constructTaskList() {
-        ArrayList<Task> wasteTasks = new ArrayList<>();
-        ArrayList<Task> recyclingTasks = new ArrayList<>();
-        taskQueue.clear();
+    public void constructTaskList(Cell[][] view) {
+        TaskList wasteTasks = new TaskList();
+        TaskList recyclingTasks = new TaskList();
+        wasteQueue.clear();
+        recyclingQueue.clear();
         wasteWorkingList.clear();
         recyclingWorkingList.clear();
         for (GarryTheAgent agent : agents) {
+            if(agent.view!= null && agent.view.equals(view)) {
+                AreaScan agentView = new AreaScan(agent.getPosition());
+                agentView.scanCells(view);
+                for(WasteStation wasteStation : agentView.wasteStations){
+                    if(!wasteStations.contains(wasteStation)){
+                        wasteStations.add(wasteStation);
+                    }
+                }
+                for(RecyclingStation recyclingStation : agentView.recyclingStations){
+                    if(!recyclingStations.contains(recyclingStation)){
+                        recyclingStations.add(recyclingStation);
+                    }
+                }
+                if (!agentView.wasteTasks.isEmpty()) {
+                    for (Task waste : agentView.wasteTasks) {
+                        if (!wasteTasks.contains(waste)) {
+                            wasteTasks.add(waste);
+                        }
+                    }
+                }
+                if (!agentView.recyclingTasks.isEmpty()) {
+                    for (Task recycling : agentView.recyclingTasks) {
+                        if (!recyclingTasks.contains(recycling)) {
+                            recyclingTasks.add(recycling);
+                        }
+                    }
+                }
+            }
+
+        }
+        Collections.sort(wasteTasks, Comparator.comparingInt(Task::getRemaining).reversed());
+        Collections.sort(recyclingTasks, Comparator.comparingInt(Task::getRemaining).reversed());
+        if (!wasteTasks.isEmpty()) {
+            buildForageList(wasteQueue, wasteTasks);
+        }
+        if (!recyclingTasks.isEmpty()) {
+            buildForageList(recyclingQueue, recyclingTasks);
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
             if (agent.currentRegion != null && !agent.currentRegion.wasteTasks.isEmpty()) {
                 for (Task waste : agent.currentRegion.wasteTasks) {
                     if (!wasteTasks.contains(waste)) {
@@ -256,13 +392,4 @@ public class TaskManager {
                 }
             }
         }
-        Collections.sort(wasteTasks, Comparator.comparingInt(Task::getRemaining).reversed());
-        Collections.sort(recyclingTasks, Comparator.comparingInt(Task::getRemaining).reversed());
-        if (!wasteTasks.isEmpty()) {
-            buildForageList(wasteTasks);
-        }
-        if (!recyclingTasks.isEmpty()) {
-            buildForageList(recyclingTasks);
-        }
-    }
-}
+ */

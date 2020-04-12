@@ -25,7 +25,7 @@ enum AgentState {
     INIT, EXPLORING, MOVETOCHARGER, FORAGING, MOVETOLITTERBIN, LITTERCOLLECTION, LITTERDISPOSAL, FORAGELITTERBINS;
 }
 
-// Enum for the
+// Enum for the direction
 enum Direction {
     NORTH, EAST, SOUTH, WEST;
 
@@ -36,35 +36,33 @@ enum Direction {
     }
 }
 
+enum AgentSpecialisation {
+    HYBRID, WASTE, RECYCLING;
+}
 public class GarryTheAgent extends LitterAgent {
     public static int agentID;
     // String constants for full class names of relevant classes
-    private static final String WASTEBIN = "class uk.ac.nott.cs.g53dia.multilibrary.WasteBin";
-    private static final String WASTESTATION = "class uk.ac.nott.cs.g53dia.multilibrary.WasteStation";
-    private static final String RECYCLINGBIN = "class uk.ac.nott.cs.g53dia.multilibrary.RecyclingBin";
-    private static final String RECYCLINGSTATION = "class uk.ac.nott.cs.g53dia.multilibrary.RecyclingStation";
-    private static final String RECHARGEPOINT = "class uk.ac.nott.cs.g53dia.multilibrary.RechargePoint";
     private static final String WASTETASK = "class uk.ac.nott.cs.g53dia.multilibrary.WasteTask";
     private static final String RECYCLINGTASK = "class uk.ac.nott.cs.g53dia.multilibrary.RecyclingTask";
     public static TaskManager taskManager;
     public Helper helper = new Helper();
 
-    public ArrayList<Task> forageList = new ArrayList<>();
+    public TaskList forageList = new TaskList();
     public int forageReference;
     // AgentState variables for control of state in SeekAndAct
     protected AgentState agentState;
     private AgentState previousState;
+    protected AgentSpecialisation agentSpecialisation;
     protected Cell[][] view;
     // Point variables for agent's exploring state
     public Point explorationLocation, originalPoint;
 
     // ArrayList and AreaScan object for tracking and control of the various recorded regions
-    //public ArrayList<AreaScan> regions = new ArrayList<>();
     AreaScan currentRegion;
 
 
     public GarryTheAgent() {
-        this(new Random(), 0);
+        this(new Random(), 0, AgentSpecialisation.HYBRID);
     }
 
     /**
@@ -73,8 +71,9 @@ public class GarryTheAgent extends LitterAgent {
      *
      * @param r The random number generator.
      */
-    public GarryTheAgent(Random r, int id) {
+    public GarryTheAgent(Random r, int id, AgentSpecialisation agentSpecialisation) {
         this.r = r;
+        this.agentSpecialisation = agentSpecialisation;
         //taskManager = new TaskManager(this);
         this.agentID = id;
         // Initialise agent state to INIT
@@ -173,7 +172,7 @@ public class GarryTheAgent extends LitterAgent {
     public Action senseAndAct(Cell[][] view, long timestep) {
         this.view = view;
         //System.out.println(timestep);
-        if(timestep == 1000) {
+        if(timestep >= 4000) {
             //System.out.println(timestep);
         }
         // If statements for charge control, always goes to the closest charger and aims to minimise distance travelled
@@ -204,8 +203,18 @@ public class GarryTheAgent extends LitterAgent {
                 agentState = AgentState.EXPLORING;
 
             case EXPLORING:
-                taskManager.constructTaskList();
-                forageList = taskManager.requestTask(this);
+                taskManager.constructTaskList(view);
+                switch(agentSpecialisation){
+                    case HYBRID:
+                        forageList = taskManager.requestTask(this);
+                        break;
+                    case WASTE:
+                        forageList = taskManager.requestTaskFromQueue(taskManager.wasteQueue, this);
+                        break;
+                    case RECYCLING:
+                        forageList = taskManager.requestTaskFromQueue(taskManager.recyclingQueue, this);
+                        break;
+                }
                 evaluateRegion(view);
                 if (forageList.isEmpty()) {
                     Point temp;
@@ -261,13 +270,23 @@ public class GarryTheAgent extends LitterAgent {
 
             case FORAGELITTERBINS:
                 evaluateRegion(view);
-                taskManager.constructTaskList();
-                if(getRecyclingLevel()!=0){
-                    forageList = taskManager.upgradeRecyclingTask(this);
-                } else if(getWasteLevel()!=0){
-                    forageList = taskManager.upgradeWasteTask(this);
-                } else {
-                    forageList = taskManager.upgradeTask(this);
+                taskManager.constructTaskList(view);
+                switch(agentSpecialisation){
+                    case HYBRID:
+                        if(getRecyclingLevel()!=0){
+                            forageList = taskManager.upgradeRecyclingTask(this);
+                        } else if(getWasteLevel()!=0){
+                            forageList = taskManager.upgradeWasteTask(this);
+                        } else {
+                            forageList = taskManager.upgradeTask(this);
+                        }
+                        break;
+                    case WASTE:
+                        forageList = taskManager.upgradeWasteTask(this);
+                        break;
+                    case RECYCLING:
+                        forageList = taskManager.upgradeRecyclingTask(this);
+                        break;
                 }
 
                 if(!forageList.isEmpty()) {
@@ -296,6 +315,7 @@ public class GarryTheAgent extends LitterAgent {
                         // When done dispose litter
                         taskManager.deactivateList(forageReference);
                         agentState = AgentState.LITTERDISPOSAL;
+                        taskManager.verifyProximity(this);
                         return new MoveTowardsAction(helper.closestPointOfAll(currentRegion.wasteStations, taskManager.regions, getPosition()));
                     }
                 } else if (this.currentTask.getClass().toString().equals(RECYCLINGTASK)) {
@@ -318,6 +338,7 @@ public class GarryTheAgent extends LitterAgent {
                     } else {
                         // When done dispose litter
                         taskManager.deactivateList(forageReference);
+                        taskManager.verifyProximity(this);
                         agentState = AgentState.LITTERDISPOSAL;
                         return new MoveTowardsAction(helper.closestPointOfAll(currentRegion.recyclingStations, taskManager.regions, getPosition()));
                     }

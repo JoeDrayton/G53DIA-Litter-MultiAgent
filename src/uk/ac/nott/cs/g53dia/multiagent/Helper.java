@@ -64,45 +64,6 @@ public class Helper {
         }
     }
 
-    public void closestTaskFromTask(ArrayList<Task> taskList, Task evalationTask, ArrayList<Task> unConstructedPath) {
-        int distance, closestDistance;
-        // Init closestDistance to 1000 so it will always set the first element
-        closestDistance = 1000;
-        Task closestTask = null;
-
-        // Iterating over the task list
-        for (Task t : taskList) {
-            distance = t.getPosition().distanceTo(evalationTask.getPosition());
-            // If new task is closer, set it to closest task
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestTask = t;
-            }
-        }
-
-        if (closestTask != null) {
-            unConstructedPath.add(closestTask);
-        }
-    }
-
-    public Task closestTaskFromPoint(ArrayList<?> list, Point startPosition) {
-        int distance, closestDistance;
-        // Same as closestTask, just initialisation
-        closestDistance = 1000;
-        Task closestPoint = null;
-        for (Object element : list) {
-            // cast element to Cell variable
-            Task point = (Task) element;
-            distance = point.getPosition().distanceTo(startPosition);
-            // if new element is closer, set it to closestPoint
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestPoint = point;
-            }
-        }
-        return closestPoint;
-    }
-
     /**
      * Very similar to closestTask, closestPoint takes an abstract ArrayList, converts it to
      * a Cell and works out which in the list is closest to the agent

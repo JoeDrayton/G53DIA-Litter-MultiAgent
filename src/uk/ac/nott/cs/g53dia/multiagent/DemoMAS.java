@@ -8,7 +8,7 @@ public class DemoMAS extends MAS {
     /** 
      * Number of agents in the MAS (this is just an **example**, not a requirement).
      */
-    private static int MAS_SIZE = 4;
+    private static int MAS_SIZE = 1;
 	public static TaskManager taskManager;
     public DemoMAS() {
     	this(new Random());
@@ -25,8 +25,26 @@ public class DemoMAS extends MAS {
     	taskManager.clear();
 	// Create the agents
 	for (int i=0; i<MAS_SIZE; i++) {
-	    GarryTheAgent agent = new GarryTheAgent(r, i);
-		this.add(agent);
+		GarryTheAgent agent; // = new GarryTheAgent(r, i, AgentSpecialisation.HYBRID);
+		if(MAS_SIZE == 1) {
+			 agent = new GarryTheAgent(r, i, AgentSpecialisation.HYBRID);
+		} else if(MAS_SIZE %2 == 0){
+			if(i % 2 == 0){
+				agent = new GarryTheAgent(r, i, AgentSpecialisation.RECYCLING);
+			} else {
+				agent = new GarryTheAgent(r, i, AgentSpecialisation.WASTE);
+			}
+		} else {
+			if(i % 2 == 0 && i != MAS_SIZE - 1){
+				agent = new GarryTheAgent(r, i, AgentSpecialisation.RECYCLING);
+			} else if(i % 2 == 1){
+				agent = new GarryTheAgent(r, i, AgentSpecialisation.WASTE);
+			} else {
+				agent = new GarryTheAgent(r, i, AgentSpecialisation.HYBRID);
+			}
+		}
+
+	    this.add(agent);
 		taskManager = new TaskManager(agent);
 	    agent.taskManager =  taskManager;
 	}
