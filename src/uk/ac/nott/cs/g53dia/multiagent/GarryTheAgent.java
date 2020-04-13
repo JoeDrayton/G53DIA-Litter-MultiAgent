@@ -4,6 +4,7 @@ import uk.ac.nott.cs.g53dia.multilibrary.*;
 import uk.ac.nott.cs.g53dia.multisimulator.MultiEvaluator;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Random;
 
 import static java.lang.Math.abs;
@@ -172,7 +173,7 @@ public class GarryTheAgent extends LitterAgent {
     public Action senseAndAct(Cell[][] view, long timestep) {
         this.view = view;
         //System.out.println(timestep);
-        if(timestep >= 4000) {
+        if(timestep >= 185) {
             //System.out.println(timestep);
         }
         // If statements for charge control, always goes to the closest charger and aims to minimise distance travelled
@@ -295,6 +296,8 @@ public class GarryTheAgent extends LitterAgent {
                 if (this.currentTask.getClass().toString().equals(WASTETASK)) {
                     // If it is a waste task and forage list is not empty
                     if (!forageList.isEmpty()) {
+                        forageList.selectStation(helper, taskManager.wasteStations);
+                        forageList = forageList.findPath(this, helper);
                         // Pop off a task from the list and execute it
                         this.currentTask = forageList.get(0);
                         if (getCurrentCell(view) instanceof WasteBin && getPosition().equals(this.currentTask.getPosition())) {
@@ -321,6 +324,8 @@ public class GarryTheAgent extends LitterAgent {
                 } else if (this.currentTask.getClass().toString().equals(RECYCLINGTASK)) {
                     // If it is a recycling task and forage list is not empty
                     if (!forageList.isEmpty()) {
+                        forageList.selectStation(helper, taskManager.recyclingStations);
+                        forageList = forageList.findPath(this, helper);
                         // Pop off a task from the list and execute it
                         this.currentTask = forageList.get(0);
                         if (getCurrentCell(view) instanceof RecyclingBin && getPosition().equals(this.currentTask.getPosition())) {

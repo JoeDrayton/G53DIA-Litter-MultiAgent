@@ -228,43 +228,6 @@ public class TaskManager {
         return agent.forageList;
     }
 
-    public Point majorityStation(HashMap<Point, Integer> stations){
-        Point majorityStation = null;
-        int maxStationCount = 0;
-        for(Point station : stations.keySet()){
-            int currentStationCount = stations.get(station);
-            if(maxStationCount < currentStationCount){
-                majorityStation = station;
-                maxStationCount = currentStationCount;
-            }
-        }
-        return majorityStation;
-    }
-
-    public Point selectStation(TaskList taskList){
-        HashMap<Point, Integer> stations = new HashMap<>();
-        for(Task t : taskList){
-            if(t.getClass().toString().equals(WASTETASK)){
-                Point wasteStation = helper.closestPointFromPoint(wasteStations, t.getPosition()).getPoint();
-                if(stations.containsKey(wasteStation)){
-                    int current = stations.get(wasteStation) + 1;
-                    stations.replace(wasteStation, current);
-                } else {
-                    stations.put(wasteStation, 1);
-                }
-            } else if(t.getClass().toString().equals(RECYCLINGTASK)){
-                Point recyclingStation = helper.closestPointFromPoint(recyclingStations, t.getPosition()).getPoint();
-                if(stations.containsKey(recyclingStation)){
-                    int current = stations.get(recyclingStation) + 1;
-                    stations.replace(recyclingStation, current);
-                } else {
-                    stations.put(recyclingStation, 1);
-                }
-            }
-        }
-        return majorityStation(stations);
-    }
-
     /**
      * buildForageList determines all viable tasks for the agent to complete en route to the relevant station
      *
@@ -297,8 +260,6 @@ public class TaskManager {
             }
             // If the list is not empty then use findPath
             if (!forageList.isEmpty()) {
-                forageList.listStation = selectStation(forageList);
-                forageList = forageList.findPath();
                 if(forageList.compareTaskList(activeList) == -1){
                     taskQueue.add(forageList);
                 } else {

@@ -8,7 +8,7 @@ public class DemoMAS extends MAS {
     /** 
      * Number of agents in the MAS (this is just an **example**, not a requirement).
      */
-    private static int MAS_SIZE = 1;
+    private static int MAS_SIZE = 2;
 	public static TaskManager taskManager;
     public DemoMAS() {
     	this(new Random());
