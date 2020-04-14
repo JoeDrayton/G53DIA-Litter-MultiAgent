@@ -10,21 +10,29 @@ import java.util.Map;
 public class TaskList extends ArrayList<Task> {
     public Point listStation;
     public TaskList(){
-        //listStation = station;
     }
 
     public TaskList(TaskList copy){
         this.addAll(copy);
     }
 
-    public void setListStation(Point station){
-        int x = station.getX();
-        int y = station.getY();
-        //listStation = new Point(x, y);
+    public int getTotalRemaining(){
+        int amount = 0;
+        for(Task t : this){
+            amount += t.getRemaining();
+        }
+        return amount;
     }
 
-    public void getListStation(){
-        //return this.listStation;
+    public int getTotalDistance(){
+        int distance = 0;
+        Task previous = this.get(0);
+        for(Task t : this){
+            distance += previous.getPosition().distanceTo(t.getPosition());
+            previous = t;
+        }
+        distance += previous.getPosition().distanceTo(this.listStation);
+        return distance;
     }
 
     public int compareTaskList(HashMap<Integer, TaskList> activeList){
@@ -53,41 +61,6 @@ public class TaskList extends ArrayList<Task> {
         }
         return newList;
     }
-
-    public int getTotalRemaining(){
-        int amount = 0;
-        for(Task t : this){
-            amount += t.getRemaining();
-        }
-        return amount;
-    }
-
-    public int getTotalDistance(){
-        int distance = 0;
-        Task previous = this.get(0);
-        for(Task t : this){
-            distance += previous.getPosition().distanceTo(t.getPosition());
-            previous = t;
-        }
-        //distance += previous.getPosition().distanceTo(this.listStation);
-        return distance;
-    }
-
-/*
-    public Task closestTaskToStation(){
-        int maxDistance = -1;
-        Task closestTask = this.get(0);
-        for(Task t : this){
-            int currentDistance = t.getPosition().distanceTo(this.listStation);
-            if(maxDistance < currentDistance){
-                maxDistance = currentDistance;
-                closestTask = t;
-            }
-        }
-        return closestTask;
-    }
-
- */
 
     /**
      * findPath quite simply finds a low cost path between the tasks supplies

@@ -95,74 +95,30 @@ public class GarryTheAgent extends LitterAgent {
         }
     }
 
-    /**
-     * Controls when the agent records a new region and when to just rescan the current region
-     * @param view
-     */
-    public void evaluateRegion(Cell[][] view) {
-        boolean tooClose = false;
-        for(AreaScan r : taskManager.regions){
-            if(getPosition().distanceTo(r.location) < 15){
-                tooClose = true;
-            }
-        }
-        if (!tooClose) {
-            // Record a new region and scan it
-            currentRegion = new AreaScan(getPosition());
-            currentRegion.scanCells(view);
-            taskManager.regions.add(currentRegion);
-            // Call regionSelect to determine which region the agent should select
-            regionSelect();
-        } else {
-            // Just scan
-            currentRegion.scanCells(view);
-        }
-    }
-
-    /**
-     * regionSelect iterates over the region list and determines a score for each
-     * region based on 'potential' in the region
-     */
-    public void regionSelect() {
-        // Initialises variables
-        AreaScan bestRegion = currentRegion;
-        int combinedPotential, wastePotential, recyclingPotential, distanceToRegion;
-        double regionScore = 0;
-        // Iterate over variables list
-        for (AreaScan region : taskManager.regions) {
-            wastePotential = 0;
-            // Get potential score for waste tasks in selected region
-            for (Task waste : region.wasteTasks) {
-                wastePotential += waste.getRemaining();
-            }
-            recyclingPotential = 0;
-            // Get potential score for recycling tasks in selected region
-            for (Task recycling : region.recyclingTasks) {
-                recyclingPotential += recycling.getRemaining();
-            }
-            // Sums potential score
-            combinedPotential = wastePotential + recyclingPotential;
-
-            // Works out distance for the agent to get to the selected region
-            distanceToRegion = getPosition().distanceTo(region.location);
-            if (distanceToRegion == 0) {
-                distanceToRegion = 1;
-            }
-            // If the region score is higher then assign bestRegion to the higher scored region
-            double newRegionScore = combinedPotential / distanceToRegion;
-            if (newRegionScore > regionScore) {
-                regionScore = newRegionScore;
-                bestRegion = region;
-            }
-        }
-        this.currentRegion = bestRegion;
-    }
-
-
-
-
     protected Task currentTask;
     private Direction direction;
+
+    public Action shouldAgentCharge(){
+        this.currentTask = forageList.get(0);
+        if(this.currentTask.getClass().toString().equals(WASTETASK)){
+            forageList.selectStation(helper, helper.wasteStations);
+        } else if(this.currentTask.getClass().toString().equals(RECYCLINGTASK)){
+            forageList.selectStation(helper, helper.recyclingStations);
+        }
+        int pathDistance = getPosition().distanceTo(this.currentTask.getPosition()) + forageList.getTotalDistance() + forageList.listStation.distanceTo(helper.closestPointFromPoint(helper.rechargePoints, forageList.listStation).getPoint());
+        int charge = getChargeLevel();
+        int chargeDistance = getPosition().distanceTo(helper.closestPoint(helper.rechargePoints, this).getPoint());
+        int comparator = charge - pathDistance;
+        int comparator2 = chargeDistance - charge;
+        if(comparator <= 5){
+            agentState = AgentState.MOVETOCHARGER;
+            taskManager.deactivateList(forageReference);
+            return new MoveTowardsAction(helper.closestPoint(helper.rechargePoints, this).getPoint());
+        } else {
+            agentState = AgentState.FORAGELITTERBINS;
+            return new MoveTowardsAction(this.currentTask.getPosition());
+        }
+    }
 
     /**
      * The major method in GarryTheAgent, controls the litter collection process with each timestep
@@ -172,32 +128,34 @@ public class GarryTheAgent extends LitterAgent {
      */
     public Action senseAndAct(Cell[][] view, long timestep) {
         this.view = view;
+        AreaScan agentView = new AreaScan(getPosition());
+        agentView.scanCells(view);
+        helper.addToUniversalLists(agentView);
         //System.out.println(timestep);
-        if(timestep >= 185) {
+        if(timestep >= 1560) {
             //System.out.println(timestep);
         }
+
         // If statements for charge control, always goes to the closest charger and aims to minimise distance travelled
-        if (getChargeLevel() != MAX_CHARGE && abs(getPosition().distanceTo(helper.closestRecharge(this)) - getChargeLevel()) < 8) {
+        if (getChargeLevel() != MAX_CHARGE && abs(getPosition().distanceTo(helper.closestPoint(helper.rechargePoints, this).getPoint()) - getChargeLevel()) < 8) {
             if (agentState != AgentState.MOVETOCHARGER) {
                 previousState = agentState;
             }
+            //taskManager.deactivateList(forageReference);
             agentState = AgentState.MOVETOCHARGER;
         }
-        if (getChargeLevel() < MAX_CHARGE / 2 && getPosition().distanceTo(helper.closestRecharge(this)) < 5) {
+        if (getChargeLevel() < MAX_CHARGE / 2 && getPosition().distanceTo(helper.closestPoint(helper.rechargePoints, this).getPoint()) < 5) {
             if (agentState != AgentState.MOVETOCHARGER) {
                 previousState = agentState;
             }
+            //taskManager.deactivateList(forageReference);
             agentState = AgentState.MOVETOCHARGER;
         }
+
 
         // Switch statement
         switch (agentState) {
             case INIT:
-                // Variable intialisation
-                currentRegion = new AreaScan(getPosition());
-                currentRegion.scanCells(view);
-                //direction = Direction.NORTH;
-                taskManager.regions.add(currentRegion);
                 this.originalPoint = getPosition();
                 this.explorationLocation = this.originalPoint;
                 // Attempt to find task
@@ -216,7 +174,6 @@ public class GarryTheAgent extends LitterAgent {
                         forageList = taskManager.requestTaskFromQueue(taskManager.recyclingQueue, this);
                         break;
                 }
-                evaluateRegion(view);
                 if (forageList.isEmpty()) {
                     Point temp;
                     // Move between North, South, East and West
@@ -224,26 +181,28 @@ public class GarryTheAgent extends LitterAgent {
                         switch (direction) {
                             case NORTH:
                                 temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() + r.nextInt(100));
+                                this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() + r.nextInt(50));
                                 this.originalPoint = temp;
                                 break;
                             case EAST:
                                 temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX() + r.nextInt(100), this.originalPoint.getY());
+                                this.explorationLocation = new Point(this.originalPoint.getX() + r.nextInt(50), this.originalPoint.getY());
                                 this.originalPoint = temp;
                                 break;
                             case SOUTH:
                                 temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() - r.nextInt(100));
+                                this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() - r.nextInt(50));
                                 this.originalPoint = temp;
                                 break;
                             case WEST:
                                 temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX() - r.nextInt(100), this.originalPoint.getY());
+                                this.explorationLocation = new Point(this.originalPoint.getX() - r.nextInt(50), this.originalPoint.getY());
                                 this.originalPoint = temp;
                                 break;
                         }
-                        direction = direction.next();
+                        if(getPosition().equals(explorationLocation)) {
+                            direction = direction.next();
+                        }
                     }
                     return new MoveTowardsAction(this.explorationLocation);
                 } else {
@@ -263,14 +222,13 @@ public class GarryTheAgent extends LitterAgent {
                         return new RechargeAction();
                     }
                 } else {
-                    if (!getPosition().equals(helper.closestRecharge(this))) {
+                    if (!getPosition().equals(helper.closestPoint(helper.rechargePoints, this).getPoint())) {
                         // Or move to closest charger
-                        return new MoveTowardsAction(helper.closestRecharge(this));
+                        return new MoveTowardsAction(helper.closestPoint(helper.rechargePoints, this).getPoint());
                     }
                 }
 
             case FORAGELITTERBINS:
-                evaluateRegion(view);
                 taskManager.constructTaskList(view);
                 switch(agentSpecialisation){
                     case HYBRID:
@@ -292,11 +250,12 @@ public class GarryTheAgent extends LitterAgent {
 
                 if(!forageList.isEmpty()) {
                     this.currentTask = forageList.get(0);
+                    //shouldAgentCharge();
                 }
                 if (this.currentTask.getClass().toString().equals(WASTETASK)) {
                     // If it is a waste task and forage list is not empty
                     if (!forageList.isEmpty()) {
-                        forageList.selectStation(helper, taskManager.wasteStations);
+                        forageList.selectStation(helper, helper.wasteStations);
                         forageList = forageList.findPath(this, helper);
                         // Pop off a task from the list and execute it
                         this.currentTask = forageList.get(0);
@@ -304,7 +263,6 @@ public class GarryTheAgent extends LitterAgent {
                             // Deal with forage task also
                             forageList.remove(0);
                             agentState = AgentState.FORAGELITTERBINS;
-                            currentRegion.wasteTasks.remove(this.currentTask);
                             return new LoadAction(this.currentTask);
                         } else {
                             agentState = AgentState.FORAGELITTERBINS;
@@ -318,20 +276,19 @@ public class GarryTheAgent extends LitterAgent {
                         // When done dispose litter
                         taskManager.deactivateList(forageReference);
                         agentState = AgentState.LITTERDISPOSAL;
-                        taskManager.verifyProximity(this);
-                        return new MoveTowardsAction(helper.closestPointOfAll(currentRegion.wasteStations, taskManager.regions, getPosition()));
+                    taskManager.verifyProximity(this);
+                        return new MoveTowardsAction(helper.closestPoint(helper.wasteStations, this).getPoint());
                     }
                 } else if (this.currentTask.getClass().toString().equals(RECYCLINGTASK)) {
                     // If it is a recycling task and forage list is not empty
                     if (!forageList.isEmpty()) {
-                        forageList.selectStation(helper, taskManager.recyclingStations);
+                        forageList.selectStation(helper, helper.recyclingStations);
                         forageList = forageList.findPath(this, helper);
                         // Pop off a task from the list and execute it
                         this.currentTask = forageList.get(0);
                         if (getCurrentCell(view) instanceof RecyclingBin && getPosition().equals(this.currentTask.getPosition())) {
                             // Deal with forage task also
                             forageList.remove(0);
-                            currentRegion.recyclingTasks.remove(this.currentTask);
                             agentState = AgentState.FORAGELITTERBINS;
                             return new LoadAction(this.currentTask);
                         } else {
@@ -345,23 +302,18 @@ public class GarryTheAgent extends LitterAgent {
                         taskManager.deactivateList(forageReference);
                         taskManager.verifyProximity(this);
                         agentState = AgentState.LITTERDISPOSAL;
-                        return new MoveTowardsAction(helper.closestPointOfAll(currentRegion.recyclingStations, taskManager.regions, getPosition()));
+                        return new MoveTowardsAction(helper.closestPoint(helper.recyclingStations, this).getPoint());
                     }
                 }
 
             case LITTERDISPOSAL:
-                evaluateRegion(view);
                 if (this.currentTask.getClass().toString().equals(WASTETASK)) {
                         if (getCurrentCell(view) instanceof WasteStation && getWasteLevel() != 0) {
                             agentState = AgentState.EXPLORING;
                             return new DisposeAction();
                     } else if (getWasteLevel() != 0) {
                         Point closestLitterDisposal;
-                        try {
-                            closestLitterDisposal = helper.closestPoint(currentRegion.wasteStations, this).getPoint();
-                        } catch (NullPointerException e) {
-                            closestLitterDisposal = helper.closestPointOfAll(currentRegion.wasteStations, taskManager.regions, getPosition());
-                        }
+                        closestLitterDisposal = helper.closestPoint(helper.wasteStations, this).getPoint();
                         if (!getPosition().equals(closestLitterDisposal)) {
                             // Move to closest disposal
                             return new MoveTowardsAction(closestLitterDisposal);
@@ -377,11 +329,7 @@ public class GarryTheAgent extends LitterAgent {
                         return new DisposeAction();
                     } else if (getRecyclingLevel() != 0) {
                         Point closestRecyclingDisposal;
-                        try {
-                            closestRecyclingDisposal = helper.closestPoint(currentRegion.recyclingStations, this).getPoint();
-                        } catch (NullPointerException e) {
-                            closestRecyclingDisposal = helper.closestPointOfAll(currentRegion.recyclingStations, taskManager.regions, getPosition());
-                        }
+                        closestRecyclingDisposal = helper.closestPoint(helper.recyclingStations, this).getPoint();
                         if (!getPosition().equals(closestRecyclingDisposal)) {
                             return new MoveTowardsAction(closestRecyclingDisposal);
                         }

@@ -6,18 +6,14 @@ import uk.ac.nott.cs.g53dia.multilibrary.*;
 import java.util.*;
 
 public class TaskManager {
-    public ArrayList<AreaScan> regions = new ArrayList<>();
     public ArrayList<Task> wasteWorkingList = new ArrayList<>();
     public ArrayList<Task> recyclingWorkingList = new ArrayList<>();
     public ArrayList<TaskList> wasteQueue = new ArrayList<>();
     public ArrayList<TaskList> recyclingQueue = new ArrayList<>();
-    public ArrayList<RecyclingStation> recyclingStations = new ArrayList<>();
-    public ArrayList<WasteStation> wasteStations = new ArrayList<>();
     public HashMap<Integer, TaskList> activeList = new HashMap<>();
     private final String WASTETASK = "class uk.ac.nott.cs.g53dia.multilibrary.WasteTask";
     private final String RECYCLINGTASK = "class uk.ac.nott.cs.g53dia.multilibrary.RecyclingTask";
     public static ArrayList<GarryTheAgent> agents = new ArrayList<>();
-    public Helper helper = new Helper();
     public int activeListIndex = -1;
 
     public TaskManager(GarryTheAgent agent) {
@@ -97,20 +93,9 @@ public class TaskManager {
         return new TaskList();
     }
 
-    public float queueScore(ArrayList<TaskList> taskQueue, GarryTheAgent agent) {
-        float totalScore = 0;
-        for (TaskList taskList : taskQueue) {
-            totalScore += taskListScore(taskList, agent);
-        }
-        return totalScore;
-    }
-
     public float taskListScore(TaskList list, GarryTheAgent agent) {
-        float score = 0;
+        float score = list.getTotalRemaining();
         int distance;
-        for (Task t : list) {
-            score += t.getRemaining();
-        }
         distance = list.get(0).getPosition().distanceTo(agent.getPosition());
         if (distance == 0) {
             distance = 1;
@@ -122,7 +107,7 @@ public class TaskManager {
         ArrayList<GarryTheAgent> closeAgents = new ArrayList<>();
         closeAgents.add(currentAgent);
         for (GarryTheAgent agent : agents) {
-            if (currentAgent.getPosition().distanceTo(agent.getPosition()) < 25 && !currentAgent.equals(agent)) {
+            if (currentAgent.getPosition().distanceTo(agent.getPosition()) < 20 && !currentAgent.equals(agent)) {
                 closeAgents.add(agent);
             }
         }
@@ -283,16 +268,6 @@ public class TaskManager {
             if(agent.view!= null && agent.view.equals(view)) {
                 AreaScan agentView = new AreaScan(agent.getPosition());
                 agentView.scanCells(view);
-                for(WasteStation wasteStation : agentView.wasteStations){
-                    if(!wasteStations.contains(wasteStation)){
-                        wasteStations.add(wasteStation);
-                    }
-                }
-                for(RecyclingStation recyclingStation : agentView.recyclingStations){
-                    if(!recyclingStations.contains(recyclingStation)){
-                        recyclingStations.add(recyclingStation);
-                    }
-                }
                 if (!agentView.wasteTasks.isEmpty()) {
                     for (Task waste : agentView.wasteTasks) {
                         if (!wasteTasks.contains(waste)) {
@@ -320,37 +295,3 @@ public class TaskManager {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-            if (agent.currentRegion != null && !agent.currentRegion.wasteTasks.isEmpty()) {
-                for (Task waste : agent.currentRegion.wasteTasks) {
-                    if (!wasteTasks.contains(waste)) {
-                        wasteTasks.add(waste);
-                    }
-                }
-            }
-            if (agent.currentRegion != null && !agent.currentRegion.recyclingTasks.isEmpty()) {
-                for (Task recycling : agent.currentRegion.recyclingTasks) {
-                    if (!recyclingTasks.contains(recycling)) {
-                        recyclingTasks.add(recycling);
-                    }
-                }
-            }
-        }
- */
