@@ -107,7 +107,7 @@ public class TaskManager {
         ArrayList<GarryTheAgent> closeAgents = new ArrayList<>();
         closeAgents.add(currentAgent);
         for (GarryTheAgent agent : agents) {
-            if (currentAgent.getPosition().distanceTo(agent.getPosition()) < 20 && !currentAgent.equals(agent)) {
+            if (currentAgent.getPosition().distanceTo(agent.getPosition()) < 25 && !currentAgent.equals(agent)) {
                 closeAgents.add(agent);
             }
         }
@@ -232,7 +232,7 @@ public class TaskManager {
             for (Task newTask : list) {
                 // If the new task is close enough to the current task and won't overfill the capacity
                 int distance = initialTask.getPosition().distanceTo(newTask.getPosition());
-                if (distance < 10 && (potentialCapacity + newTask.getRemaining() < GarryTheAgent.MAX_LITTER)) {
+                if (distance < 11 && (potentialCapacity + newTask.getRemaining() < GarryTheAgent.MAX_LITTER)) {
                     // If the distance from the current task to the station is similar to the new task
                     if (!isTaskOnWorkingList(newTask) && !newTask.isComplete()) {
                         // Add it to the list and set current task to the new task

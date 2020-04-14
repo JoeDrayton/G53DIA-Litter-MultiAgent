@@ -57,14 +57,8 @@ public class GarryTheAgent extends LitterAgent {
     protected Cell[][] view;
     // Point variables for agent's exploring state
     public Point explorationLocation, originalPoint;
-
-    // ArrayList and AreaScan object for tracking and control of the various recorded regions
-    AreaScan currentRegion;
-
-
-    public GarryTheAgent() {
-        this(new Random(), 0, AgentSpecialisation.HYBRID);
-    }
+    protected Task currentTask;
+    private Direction direction;
 
     /**
      * The tanker implementation makes random moves. For reproducibility, it
@@ -95,28 +89,21 @@ public class GarryTheAgent extends LitterAgent {
         }
     }
 
-    protected Task currentTask;
-    private Direction direction;
-
-    public Action shouldAgentCharge(){
-        this.currentTask = forageList.get(0);
+    public Boolean shouldAgentCharge(){
         if(this.currentTask.getClass().toString().equals(WASTETASK)){
             forageList.selectStation(helper, helper.wasteStations);
         } else if(this.currentTask.getClass().toString().equals(RECYCLINGTASK)){
             forageList.selectStation(helper, helper.recyclingStations);
         }
-        int pathDistance = getPosition().distanceTo(this.currentTask.getPosition()) + forageList.getTotalDistance() + forageList.listStation.distanceTo(helper.closestPointFromPoint(helper.rechargePoints, forageList.listStation).getPoint());
-        int charge = getChargeLevel();
-        int chargeDistance = getPosition().distanceTo(helper.closestPoint(helper.rechargePoints, this).getPoint());
-        int comparator = charge - pathDistance;
-        int comparator2 = chargeDistance - charge;
-        if(comparator <= 5){
+        if(getChargeLevel() - (getPosition().distanceTo(this.currentTask.getPosition()) + forageList.getTotalDistance() + forageList.listStation.distanceTo(helper.closestPointFromPoint(helper.rechargePoints, forageList.listStation).getPoint())) <= 10){
+            if (agentState != AgentState.MOVETOCHARGER) {
+                previousState = agentState;
+            }
             agentState = AgentState.MOVETOCHARGER;
-            taskManager.deactivateList(forageReference);
-            return new MoveTowardsAction(helper.closestPoint(helper.rechargePoints, this).getPoint());
+            return true;
         } else {
             agentState = AgentState.FORAGELITTERBINS;
-            return new MoveTowardsAction(this.currentTask.getPosition());
+            return false;
         }
     }
 
@@ -135,29 +122,25 @@ public class GarryTheAgent extends LitterAgent {
         if(timestep >= 1560) {
             //System.out.println(timestep);
         }
-
-        // If statements for charge control, always goes to the closest charger and aims to minimise distance travelled
-        if (getChargeLevel() != MAX_CHARGE && abs(getPosition().distanceTo(helper.closestPoint(helper.rechargePoints, this).getPoint()) - getChargeLevel()) < 8) {
-            if (agentState != AgentState.MOVETOCHARGER) {
-                previousState = agentState;
-            }
-            //taskManager.deactivateList(forageReference);
-            agentState = AgentState.MOVETOCHARGER;
-        }
-        if (getChargeLevel() < MAX_CHARGE / 2 && getPosition().distanceTo(helper.closestPoint(helper.rechargePoints, this).getPoint()) < 5) {
-            if (agentState != AgentState.MOVETOCHARGER) {
-                previousState = agentState;
-            }
-            //taskManager.deactivateList(forageReference);
-            agentState = AgentState.MOVETOCHARGER;
-        }
-
-
         // Switch statement
         switch (agentState) {
             case INIT:
                 this.originalPoint = getPosition();
-                this.explorationLocation = this.originalPoint;
+                int initDistance = 30;
+                switch (direction) {
+                    case NORTH:
+                        this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() + r.nextInt(initDistance));
+                        break;
+                    case EAST:
+                        this.explorationLocation = new Point(this.originalPoint.getX() + r.nextInt(initDistance), this.originalPoint.getY());
+                        break;
+                    case SOUTH:
+                        this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() - r.nextInt(initDistance));
+                        break;
+                    case WEST:
+                        this.explorationLocation = new Point(this.originalPoint.getX() - r.nextInt(initDistance), this.originalPoint.getY());
+                        break;
+                }
                 // Attempt to find task
                 agentState = AgentState.EXPLORING;
 
@@ -178,43 +161,45 @@ public class GarryTheAgent extends LitterAgent {
                     Point temp;
                     // Move between North, South, East and West
                     if (this.explorationLocation.equals(getPosition())) {
+                        direction = direction.next();
+                        int exploreDistance = 50;
                         switch (direction) {
                             case NORTH:
                                 temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() + r.nextInt(50));
+                                this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() + r.nextInt(exploreDistance));
                                 this.originalPoint = temp;
                                 break;
                             case EAST:
                                 temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX() + r.nextInt(50), this.originalPoint.getY());
+                                this.explorationLocation = new Point(this.originalPoint.getX() + r.nextInt(exploreDistance), this.originalPoint.getY());
                                 this.originalPoint = temp;
                                 break;
                             case SOUTH:
                                 temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() - r.nextInt(50));
+                                this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() - r.nextInt(exploreDistance));
                                 this.originalPoint = temp;
                                 break;
                             case WEST:
                                 temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX() - r.nextInt(50), this.originalPoint.getY());
+                                this.explorationLocation = new Point(this.originalPoint.getX() - r.nextInt(exploreDistance), this.originalPoint.getY());
                                 this.originalPoint = temp;
                                 break;
-                        }
-                        if(getPosition().equals(explorationLocation)) {
-                            direction = direction.next();
                         }
                     }
                     return new MoveTowardsAction(this.explorationLocation);
                 } else {
                     this.currentTask = forageList.get(0);
-                    agentState = AgentState.FORAGELITTERBINS;
-                    return new MoveTowardsAction(this.currentTask.getPosition());
+                    if(shouldAgentCharge()){
+                        return new MoveTowardsAction(helper.closestPoint(helper.rechargePoints, this).getPoint());
+                    } else {
+                        return new MoveTowardsAction(this.currentTask.getPosition());
+                    }
                 }
 
             case MOVETOCHARGER:
                 if (getCurrentCell(view) instanceof RechargePoint) {
                     // Reset agent state
-                    agentState = previousState;
+                    previousState = agentState;
                     if (getChargeLevel() == MAX_CHARGE) {
                         agentState = previousState;
                     } else {
@@ -250,7 +235,9 @@ public class GarryTheAgent extends LitterAgent {
 
                 if(!forageList.isEmpty()) {
                     this.currentTask = forageList.get(0);
-                    //shouldAgentCharge();
+                    if(shouldAgentCharge()){
+                        return new MoveTowardsAction(helper.closestPoint(helper.rechargePoints, this).getPoint());
+                    }
                 }
                 if (this.currentTask.getClass().toString().equals(WASTETASK)) {
                     // If it is a waste task and forage list is not empty
@@ -276,7 +263,7 @@ public class GarryTheAgent extends LitterAgent {
                         // When done dispose litter
                         taskManager.deactivateList(forageReference);
                         agentState = AgentState.LITTERDISPOSAL;
-                    taskManager.verifyProximity(this);
+                        taskManager.verifyProximity(this);
                         return new MoveTowardsAction(helper.closestPoint(helper.wasteStations, this).getPoint());
                     }
                 } else if (this.currentTask.getClass().toString().equals(RECYCLINGTASK)) {
