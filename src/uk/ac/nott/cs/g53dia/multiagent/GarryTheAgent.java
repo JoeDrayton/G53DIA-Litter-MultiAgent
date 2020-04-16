@@ -89,6 +89,23 @@ public class GarryTheAgent extends LitterAgent {
         }
     }
 
+    private void setExplorationLocation(int exploreDistance) {
+        switch (direction) {
+            case NORTH:
+                this.explorationLocation = new Point(getPosition().getX(), getPosition().getY() + exploreDistance);
+                break;
+            case EAST:
+                this.explorationLocation = new Point(getPosition().getX() + exploreDistance, getPosition().getY());
+                break;
+            case SOUTH:
+                this.explorationLocation = new Point(getPosition().getX(), getPosition().getY() - exploreDistance);
+                break;
+            case WEST:
+                this.explorationLocation = new Point(getPosition().getX() - exploreDistance, getPosition().getY());
+                break;
+        }
+    }
+
     public Boolean shouldAgentCharge(){
         if(this.currentTask.getClass().toString().equals(WASTETASK)){
             forageList.selectStation(helper, helper.wasteStations);
@@ -125,22 +142,8 @@ public class GarryTheAgent extends LitterAgent {
         // Switch statement
         switch (agentState) {
             case INIT:
-                this.originalPoint = getPosition();
-                int initDistance = 30;
-                switch (direction) {
-                    case NORTH:
-                        this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() + r.nextInt(initDistance));
-                        break;
-                    case EAST:
-                        this.explorationLocation = new Point(this.originalPoint.getX() + r.nextInt(initDistance), this.originalPoint.getY());
-                        break;
-                    case SOUTH:
-                        this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() - r.nextInt(initDistance));
-                        break;
-                    case WEST:
-                        this.explorationLocation = new Point(this.originalPoint.getX() - r.nextInt(initDistance), this.originalPoint.getY());
-                        break;
-                }
+                int initDistance = 2;
+                setExplorationLocation(initDistance);
                 // Attempt to find task
                 agentState = AgentState.EXPLORING;
 
@@ -162,29 +165,8 @@ public class GarryTheAgent extends LitterAgent {
                     // Move between North, South, East and West
                     if (this.explorationLocation.equals(getPosition())) {
                         direction = direction.next();
-                        int exploreDistance = 50;
-                        switch (direction) {
-                            case NORTH:
-                                temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() + r.nextInt(exploreDistance));
-                                this.originalPoint = temp;
-                                break;
-                            case EAST:
-                                temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX() + r.nextInt(exploreDistance), this.originalPoint.getY());
-                                this.originalPoint = temp;
-                                break;
-                            case SOUTH:
-                                temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX(), this.originalPoint.getY() - r.nextInt(exploreDistance));
-                                this.originalPoint = temp;
-                                break;
-                            case WEST:
-                                temp = this.explorationLocation;
-                                this.explorationLocation = new Point(this.originalPoint.getX() - r.nextInt(exploreDistance), this.originalPoint.getY());
-                                this.originalPoint = temp;
-                                break;
-                        }
+                        int exploreDistance = 23;
+                        setExplorationLocation(exploreDistance);
                     }
                     return new MoveTowardsAction(this.explorationLocation);
                 } else {

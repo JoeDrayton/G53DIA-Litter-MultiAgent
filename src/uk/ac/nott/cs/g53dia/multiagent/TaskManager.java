@@ -1,6 +1,5 @@
 package uk.ac.nott.cs.g53dia.multiagent;
 
-import javafx.util.Pair;
 import uk.ac.nott.cs.g53dia.multilibrary.*;
 
 import java.util.*;
@@ -15,7 +14,6 @@ public class TaskManager {
     private final String RECYCLINGTASK = "class uk.ac.nott.cs.g53dia.multilibrary.RecyclingTask";
     public static ArrayList<GarryTheAgent> agents = new ArrayList<>();
     public int activeListIndex = -1;
-
     public TaskManager(GarryTheAgent agent) {
         agents.add(agent);
     }
@@ -107,7 +105,7 @@ public class TaskManager {
         ArrayList<GarryTheAgent> closeAgents = new ArrayList<>();
         closeAgents.add(currentAgent);
         for (GarryTheAgent agent : agents) {
-            if (currentAgent.getPosition().distanceTo(agent.getPosition()) < 25 && !currentAgent.equals(agent)) {
+            if (currentAgent.getPosition().distanceTo(agent.getPosition()) < 11 && !currentAgent.equals(agent)) {
                 closeAgents.add(agent);
             }
         }

@@ -9,7 +9,7 @@ import java.util.Random;
  * An example of how to simulate execution of a multi-agent system in the sample
  * (task) environment.
  * <p>
- * Creates a default {@link Environment}, a {@link DemoMAS} and a GUI window
+ * Creates a default {@link Environment}, a {@link GarryMAS} and a GUI window
  * (a {@link MASViewer}) and executes the MAS for DURATION days in the
  * environment.
  * 
@@ -30,7 +30,7 @@ public class MultiSimulator {
 	 * Time for which execution pauses so that GUI can update. Reducing this
 	 * value causes the simulation to run faster.
 	 */
-	private static int DELAY = 1;
+	private static int DELAY = 10;
 
 	/**
 	 * Number of timesteps to execute.
@@ -39,11 +39,11 @@ public class MultiSimulator {
 
 	public static void main(String[] args) {
 		// Note: to obtain reproducible behaviour, you can set the Random seed
-		Random r = new Random(5);
+		Random r = new Random(0);
 		// Create an environment
 		Environment env = new Environment(LitterAgent.MAX_CHARGE/2, r);
 		// Create a MAS
-		MAS mas = new DemoMAS(r);
+		MAS mas = new GarryMAS(r);
 		// Create a GUI window to show the MAS
 		MASViewer mv = new MASViewer(mas);
 		mv.setDefaultCloseOperation(javax.swing.JFrame.EXIT_ON_CLOSE);
