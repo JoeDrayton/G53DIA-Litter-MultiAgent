@@ -124,6 +124,8 @@ public class GarryTheAgent extends LitterAgent {
         }
     }
 
+
+
     /**
      * The major method in GarryTheAgent, controls the litter collection process with each timestep
      * @param view The cells the agent can currently see.
@@ -168,7 +170,12 @@ public class GarryTheAgent extends LitterAgent {
                         int exploreDistance = 23;
                         setExplorationLocation(exploreDistance);
                     }
-                    return new MoveTowardsAction(this.explorationLocation);
+                    if(getChargeLevel() < MAX_CHARGE/4){
+                        agentState = AgentState.MOVETOCHARGER;
+                        return new MoveTowardsAction(helper.closestPoint(helper.rechargePoints, this).getPoint());
+                    } else {
+                        return new MoveTowardsAction(this.explorationLocation);
+                    }
                 } else {
                     this.currentTask = forageList.get(0);
                     if(shouldAgentCharge()){
