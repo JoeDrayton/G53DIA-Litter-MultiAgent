@@ -41,7 +41,7 @@ enum AgentSpecialisation {
     HYBRID, WASTE, RECYCLING;
 }
 public class GarryTheAgent extends LitterAgent {
-    public static int agentID;
+    public int agentID;
     // String constants for full class names of relevant classes
     private static final String WASTETASK = "class uk.ac.nott.cs.g53dia.multilibrary.WasteTask";
     private static final String RECYCLINGTASK = "class uk.ac.nott.cs.g53dia.multilibrary.RecyclingTask";
@@ -136,7 +136,7 @@ public class GarryTheAgent extends LitterAgent {
         agentView.scanCells(view);
         helper.addToUniversalLists(agentView);
         //System.out.println(timestep);
-        if(timestep >= 1560) {
+        if(timestep >= 500) {
             //System.out.println(timestep);
         }
         // Switch statement

@@ -12,8 +12,8 @@ import java.util.Random;
 public class MultiEvaluator {
 
 	private static int DURATION = 10000;
-	private static int NRUNS = 50;
-	private static int SEED = 0;
+	private static int NRUNS = 10;
+	private static int SEED = 20;
 
 	public static void main(String[] args) {
 
