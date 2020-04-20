@@ -63,7 +63,8 @@ public class TaskList extends ArrayList<Task> {
     }
 
     /**
-     * findPath quite simply finds a low cost path between the tasks supplies
+     * findPath quite simply finds a low cost path through the nodes in the TaskList
+     * finishing at the litter station
      * @return returns a sorted list
      */
     public TaskList findPath(GarryTheAgent agent, Helper helper) {
@@ -87,6 +88,11 @@ public class TaskList extends ArrayList<Task> {
         return constructedPath;
     }
 
+    /**
+     * Finds the closest task from a single task
+     * @param original
+     * @param unConstructedPath
+     */
     public void closestTaskFromTask(TaskList original, TaskList unConstructedPath) {
         int distance, closestDistance;
         // Init closestDistance to 1000 so it will always set the first element
@@ -108,6 +114,11 @@ public class TaskList extends ArrayList<Task> {
         }
     }
 
+    /**
+     * Finds the closest task from a single point
+     * @param list
+     * @param startPosition
+     */
     public Task closestTaskFromPoint(ArrayList<?> list, Point startPosition) {
         int distance, closestDistance;
         // Same as closestTask, just initialisation
@@ -126,6 +137,11 @@ public class TaskList extends ArrayList<Task> {
         return closestPoint;
     }
 
+    /**
+     * counts which station has the highest count of being closest to the tasks
+     * @param stations
+     * @return
+     */
     public Point majorityStation(HashMap<Point, Integer> stations){
         Point majorityStation = null;
         int maxStationCount = 0;
@@ -139,6 +155,11 @@ public class TaskList extends ArrayList<Task> {
         return majorityStation;
     }
 
+    /**
+     * Iterates over the TaskList to find which station is closest to most of the tasks
+     * @param helper
+     * @param stationList
+     */
     public void selectStation(Helper helper, ArrayList<?> stationList) {
         HashMap<Point, Integer> stations = new HashMap<>();
         for (Task t : this) {

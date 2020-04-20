@@ -89,6 +89,7 @@ public class GarryTheAgent extends LitterAgent {
         }
     }
 
+
     private void setExplorationLocation(int exploreDistance) {
         switch (direction) {
             case NORTH:
@@ -106,6 +107,10 @@ public class GarryTheAgent extends LitterAgent {
         }
     }
 
+    /**
+     * Determines whether the agent can complete its current task as well as reach a charging point
+     * @return
+     */
     public Boolean shouldAgentCharge(){
         if(this.currentTask.getClass().toString().equals(WASTETASK)){
             forageList.selectStation(helper, helper.wasteStations);

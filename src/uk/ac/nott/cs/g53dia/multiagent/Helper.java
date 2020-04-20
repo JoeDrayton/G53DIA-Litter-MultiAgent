@@ -81,6 +81,10 @@ public class Helper {
         return closestPoint;
     }
 
+    /**
+     * Takes the agent's view and adds the various stations three lists
+     * @param agentView
+     */
     public void addToUniversalLists(AreaScan agentView){
         for(WasteStation wasteStation : agentView.wasteStations){
             if(!wasteStations.contains(wasteStation)){
