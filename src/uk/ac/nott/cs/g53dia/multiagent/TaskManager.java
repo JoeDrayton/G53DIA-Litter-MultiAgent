@@ -22,6 +22,10 @@ public class TaskManager {
         agents.clear();
     }
 
+    /**
+     * Adds the task to the working list to eliminate duplicates
+     * @param task
+     */
     public void addTaskToWorkingList(Task task) {
         if (task.getClass().toString().equals(WASTETASK)) {
             wasteWorkingList.add(task);
@@ -30,6 +34,11 @@ public class TaskManager {
         }
     }
 
+    /**
+     * Verifies whether a task is on the working list or not
+     * @param task
+     * @return
+     */
     public boolean isTaskOnWorkingList(Task task) {
         if (task.getClass().toString().equals(WASTETASK)) {
             if (wasteWorkingList.contains(task)) {
@@ -43,6 +52,11 @@ public class TaskManager {
         return false;
     }
 
+    /**
+     * Activates the TaskList putting it onto activeList
+     * @param list
+     * @return
+     */
     public int activateList(TaskList list) {
         if (!activeList.containsValue(list)) {
             wasteQueue.remove(list);
@@ -55,10 +69,19 @@ public class TaskManager {
         }
     }
 
+    /**
+     * Removes the TaskList from the active list via index
+     * @param index
+     */
     public void deactivateList(int index) {
         activeList.remove(index);
     }
 
+    /**
+     * Puts together the two queues into a combined queue and calls requestTaskFromQueue
+     * @param agent
+     * @return
+     */
     public TaskList requestTask(GarryTheAgent agent) {
         ArrayList<TaskList> combinedPool = new ArrayList<>();
         combinedPool.addAll(wasteQueue);
@@ -66,6 +89,12 @@ public class TaskManager {
         return requestTaskFromQueue(combinedPool, agent);
     }
 
+    /**
+     * Iterates over the supplied queue and works out a score/cost ratio for all the bins
+     * @param taskQueue
+     * @param agent
+     * @return
+     */
     public TaskList requestTaskFromQueue(ArrayList<TaskList> taskQueue, GarryTheAgent agent) {
         if (!taskQueue.isEmpty()) {
             TaskList bestList = new TaskList();
@@ -91,6 +120,12 @@ public class TaskManager {
         return new TaskList();
     }
 
+    /**
+     * Works out the total amount of litter in a TaskList
+     * @param list
+     * @param agent
+     * @return
+     */
     public float taskListScore(TaskList list, GarryTheAgent agent) {
         float score = list.getTotalRemaining();
         int distance;
@@ -101,6 +136,11 @@ public class TaskManager {
         return score / (distance);
     }
 
+    /**
+     * If a agent is within a certain proximity of another both will specialise in either waste or recycling
+     * collection, if it is an odd number one will remain a hybrid agent
+     * @param currentAgent
+     */
     public void verifyProximity(GarryTheAgent currentAgent) {
         ArrayList<GarryTheAgent> closeAgents = new ArrayList<>();
         closeAgents.add(currentAgent);
@@ -134,6 +174,11 @@ public class TaskManager {
         }
     }
 
+    /**
+     * Similar to requestTask but will compare tasks against the current TaskList assigned to an agent
+     * @param agent
+     * @return
+     */
     public TaskList upgradeTask(GarryTheAgent agent) {
         ArrayList<TaskList> combinedPool = new ArrayList<>();
         combinedPool.addAll(wasteQueue);
@@ -141,6 +186,13 @@ public class TaskManager {
         return upgradeTaskFromQueue(combinedPool, agent);
     }
 
+    /**
+     * Iterates over the supplied queue working out a score/cost ratio for all the bins and compares against
+     * the agent's current list
+     * @param taskQueue
+     * @param agent
+     * @return
+     */
     public TaskList upgradeTaskFromQueue(ArrayList<TaskList> taskQueue, GarryTheAgent agent) {
         if (!taskQueue.isEmpty() && !agent.forageList.isEmpty()) {
             float currentTaskScore = taskListScore(agent.forageList, agent);
@@ -164,14 +216,32 @@ public class TaskManager {
         return agent.forageList;
     }
 
+    /**
+     * Upgrades specifically recycling tasks
+     * @param agent
+     * @return
+     */
     public TaskList upgradeRecyclingTask(GarryTheAgent agent) {
         return getSpecificTasks(recyclingQueue, agent, RECYCLINGTASK);
     }
 
+    /**
+     * Upgrades specifically waste tasks
+     * @param agent
+     * @return
+     */
     public TaskList upgradeWasteTask(GarryTheAgent agent) {
         return getSpecificTasks(wasteQueue, agent, WASTETASK);
     }
 
+    /**
+     * Using a supplied list of TaskQueues iterates over the supplied queue working out a score/cost ratio for all the bins and compares against
+     * the agent's current list
+     * @param taskQueue
+     * @param agent
+     * @param task
+     * @return
+     */
     private TaskList getSpecificTasks(ArrayList<TaskList> taskQueue, GarryTheAgent agent, String task) {
         if (!taskQueue.isEmpty() && !agent.forageList.isEmpty()) {
             float currentTaskScore = taskListScore(agent.forageList, agent);
@@ -212,8 +282,8 @@ public class TaskManager {
     }
 
     /**
-     * buildForageList determines all viable tasks for the agent to complete en route to the relevant station
-     *
+     * buildForageList determines all viable tasks in the task environment.
+     * It breaks the queue down into TaskLists within a certain boundary of each other
      * @param list list of potential tasks to iterate over
      */
     public void buildForageList(ArrayList<TaskList> taskQueue, ArrayList<Task> list) {
@@ -255,6 +325,12 @@ public class TaskManager {
         }
     }
 
+    /**
+     * Clears the current queues and working lists.
+     * Pools together agent views and extracts the waste and recycling tasks
+     * Calls buildForageList for both lists of waste and recycling tasks
+     * @param view
+     */
     public void constructTaskList(Cell[][] view) {
         TaskList wasteTasks = new TaskList();
         TaskList recyclingTasks = new TaskList();
